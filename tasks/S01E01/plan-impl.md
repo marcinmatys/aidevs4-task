@@ -91,8 +91,9 @@ Na etapie planowania nie widzę blokujących braków. Ewentualne decyzje technic
    - `born` (rok urodzenia z `birthDate`),
    - `city` (miejsce urodzenia),
    - `tags` (na podstawie sklasyfikowanego zawodu).
-2. Zweryfikować kompletność danych i brak pustych tagów.
-3. Przygotować finalną listę `answer` zgodną ze specyfikacją huba.
+2. Wybieramy tylko osoby których zawody zaklasyfikowano jako transport
+3. Zweryfikować kompletność danych i brak pustych tagów.
+4. Przygotować finalną listę `answer` zgodną ze specyfikacją huba.
 
 **Rezultat etapu:** gotowy payload do wysyłki.
 

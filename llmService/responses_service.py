@@ -4,10 +4,14 @@ import json
 import os
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict
+from typing import Any, Dict, TypeVar
 
 from dotenv import find_dotenv, load_dotenv
 from openai import OpenAI
+from pydantic import BaseModel
+
+
+TResponseModel = TypeVar("TResponseModel", bound=BaseModel)
 
 
 class LLMProvider(str, Enum):
@@ -69,14 +73,16 @@ class ResponsesService:
     def model(self) -> str:
         return self._model
 
-    def classify_with_schema(
+    def generate_with_schema(
         self,
         *,
         system_prompt: str,
         input_payload: Dict[str, Any],
-        output_schema: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        """Call Responses API and return parsed JSON matching the schema."""
+        output_model: type[TResponseModel],
+        schema_name: str | None = None,
+    ) -> TResponseModel:
+        """Call Responses API and return data validated by the provided Pydantic model."""
+        resolved_schema_name = schema_name or output_model.__name__
         response = self._client.responses.create(
             model=self._model,
             input=[
@@ -86,8 +92,8 @@ class ResponsesService:
             text={
                 "format": {
                     "type": "json_schema",
-                    "name": "jobs_classification",
-                    "schema": output_schema,
+                    "name": resolved_schema_name,
+                    "schema": output_model.model_json_schema(),
                     "strict": True,
                 }
             },
@@ -98,9 +104,9 @@ class ResponsesService:
             raise ValueError("Responses API returned empty output_text.")
 
         try:
-            return json.loads(raw_output)
-        except json.JSONDecodeError as error:
-            raise ValueError(f"Failed to parse Responses API JSON: {error}") from error
+            return output_model.model_validate_json(raw_output)
+        except Exception as error:
+            raise ValueError(f"Failed to parse Responses API JSON into {output_model.__name__}: {error}") from error
 
     def _resolve_base_url(self) -> str | None:
         if not self._config.base_url_env:

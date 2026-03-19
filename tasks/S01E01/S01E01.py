@@ -4,25 +4,50 @@ import csv
 import os
 from collections.abc import Iterable
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import Any, Dict
 
 from common.HttpUtil import HttpUtil
 from llmService.responses_service import LLMProvider, ResponsesService
+from pydantic import BaseModel, ConfigDict, Field
 from tasks.base_task import BaseTask
 
 
-class S01E01(BaseTask):
-    ALLOWED_TAGS = [
-        "IT",
-        "transport",
-        "edukacja",
-        "medycyna",
-        "praca z ludźmi",
-        "praca z pojazdami",
-        "praca fizyczna",
-    ]
+class AllowedTag(str, Enum):
+    """Allowed tags for job classification."""
 
+    IT = "IT"
+    TRANSPORT = "transport"
+    EDUKACJA = "edukacja"
+    MEDYCYNA = "medycyna"
+    PRACA_Z_LUDZMI = "praca z ludźmi"
+    PRACA_Z_POJAZDAMI = "praca z pojazdami"
+    PRACA_FIZYCZNA = "praca fizyczna"
+
+
+class JobClassificationItem(BaseModel):
+    """Structured classification of a single job description."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    job_id: str = Field(min_length=1, description="Job identifier from input payload.")
+    reasoning: str = Field(min_length=1, description="Short explanation in Polish.")
+    tags: list[AllowedTag] = Field(min_length=1, description="Selected tags from allowed set.")
+
+
+class JobsClassificationResponse(BaseModel):
+    """Structured list of all requested job classifications."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    classifications: list[JobClassificationItem] = Field(
+        min_length=1,
+        description="List of classifications for each requested job.",
+    )
+
+
+class S01E01(BaseTask):
     def __init__(self) -> None:
         super().__init__(base_url="{HUB_BASE_URL}", task_name="people")
         self.http_util = HttpUtil(self.base_url)
@@ -36,7 +61,11 @@ class S01E01(BaseTask):
         filtered_csv_path = self._filter_people(people_csv_path)
         filtered_people = self._read_csv_rows(filtered_csv_path)
         job_to_tags = self._classify_jobs(filtered_people)
-        filtered_people = self._filter_people_by_tag(filtered_people, job_to_tags, "transport")
+        filtered_people = self._filter_people_by_tag(
+            filtered_people,
+            job_to_tags,
+            AllowedTag.TRANSPORT,
+        )
 
         answer_payload = self._build_answer_payload(filtered_people, job_to_tags)
         verification_result = self.verify(answer_payload)
@@ -88,17 +117,18 @@ class S01E01(BaseTask):
         self,
         people: list[Dict[str, str]],
         job_to_tags: Dict[str, list[str]],
-        required_tag: str,
+        required_tag: AllowedTag,
     ) -> list[Dict[str, str]]:
         """Keep only people whose job classification contains the required tag."""
+        required_tag_value = required_tag.value
         filtered_people = [
             person
             for person in people
-            if required_tag in job_to_tags.get(person.get("job", "").strip(), [])
+            if required_tag_value in job_to_tags.get(person.get("job", "").strip(), [])
         ]
         self.logger.info(
             "Filtered people by tag '%s': %s -> %s",
-            required_tag,
+            required_tag_value,
             len(people),
             len(filtered_people),
         )
@@ -215,16 +245,17 @@ class S01E01(BaseTask):
 
         all_classifications: Dict[str, list[str]] = {}
         for batch in self._chunk_job_map(job_id_to_description, batch_size):
-            response = service.classify_with_schema(
+            response = service.generate_with_schema(
                 system_prompt=self._build_classification_prompt(),
                 input_payload={
                     "jobs": [
                         {"job_id": job_id, "job_description": description}
                         for job_id, description in batch.items()
                     ],
-                    "allowed_tags": self.ALLOWED_TAGS,
+                    "allowed_tags": self._allowed_tags(),
                 },
-                output_schema=self._build_jobs_classification_schema(),
+                output_model=self._build_jobs_classification_model(),
+                schema_name="jobs_classification",
             )
 
             batch_result = self._validate_classification_result(response, batch)
@@ -255,7 +286,7 @@ class S01E01(BaseTask):
 
     def _build_classification_prompt(self) -> str:
         """Build system prompt for job classification task."""
-        tags_csv = ", ".join(self.ALLOWED_TAGS)
+        tags_csv = ", ".join(self._allowed_tags())
 
         return (
             "You classify Polish job descriptions into tags. "
@@ -265,83 +296,38 @@ class S01E01(BaseTask):
             "Each job must have at least one tag and short reasoning in Polish."
         )
 
-    def _build_jobs_classification_schema(self) -> Dict[str, Any]:
-        """Build strict JSON schema for Responses API output."""
-        return {
-            "type": "object",
-            "description": "Jobs classification result.",
-            "properties": {
-                "classifications": {
-                    "type": "array",
-                    "description": "List of classifications for each requested job.",
-                    "items": {
-                        "type": "object",
-                        "description": "Classification of a single job.",
-                        "properties": {
-                            "job_id": {
-                                "type": "string",
-                                "description": "Job identifier from the input payload.",
-                            },
-                            "reasoning": {
-                                "type": "string",
-                                "description": "Short explanation why these tags were selected.",
-                                "minLength": 1,
-                            },
-                            "tags": {
-                                "type": "array",
-                                "description": "Selected tags from allowed set.",
-                                "minItems": 1,
-                                "items": {
-                                    "type": "string",
-                                    "enum": self.ALLOWED_TAGS,
-                                    "description": "Single tag from allowed set.",
-                                },
-                            },
-                        },
-                        "required": ["job_id", "reasoning", "tags"],
-                        "additionalProperties": False,
-                    },
-                }
-            },
-            "required": ["classifications"],
-            "additionalProperties": False,
-        }
+    @staticmethod
+    def _build_jobs_classification_model() -> type[JobsClassificationResponse]:
+        """Return Pydantic model used to generate/validate structured Responses API output."""
+        return JobsClassificationResponse
+
+    @staticmethod
+    def _allowed_tags() -> list[str]:
+        """Return allowed tags derived directly from the enum."""
+        return [tag.value for tag in AllowedTag]
 
     def _validate_classification_result(
         self,
-        response_data: Dict[str, Any],
+        response_data: JobsClassificationResponse,
         expected_batch: Dict[str, str],
     ) -> Dict[str, list[str]]:
         """Validate model response and return mapping from job_id to tags."""
-        classifications = response_data.get("classifications")
-        if not isinstance(classifications, list):
-            raise ValueError("Invalid model response: 'classifications' must be a list.")
-
         expected_ids = set(expected_batch.keys())
         result: Dict[str, list[str]] = {}
 
-        for item in classifications:
-            if not isinstance(item, dict):
-                raise ValueError("Invalid model response item: expected an object.")
+        for item in response_data.classifications:
+            job_id = item.job_id
+            reasoning = item.reasoning
+            tags = item.tags
 
-            job_id = item.get("job_id")
-            reasoning = item.get("reasoning")
-            tags = item.get("tags")
-
-            if not isinstance(job_id, str) or job_id not in expected_ids:
+            if job_id not in expected_ids:
                 raise ValueError(f"Invalid or unexpected job_id in model response: {job_id}")
             if job_id in result:
                 raise ValueError(f"Duplicate job_id in model response: {job_id}")
-            if not isinstance(reasoning, str) or not reasoning.strip():
+            if not reasoning.strip():
                 raise ValueError(f"Missing reasoning for job_id: {job_id}")
-            if not isinstance(tags, list) or not tags:
-                raise ValueError(f"Missing tags for job_id: {job_id}")
 
-            validated_tags = [tag for tag in tags if isinstance(tag, str) and tag in self.ALLOWED_TAGS]
-            if len(validated_tags) != len(tags):
-                raise ValueError(f"Invalid tag set for job_id {job_id}: {tags}")
-
-            result[job_id] = sorted(set(validated_tags))
+            result[job_id] = sorted({tag.value for tag in tags})
 
         missing_ids = expected_ids - set(result.keys())
         if missing_ids:
@@ -387,6 +373,7 @@ class S01E01(BaseTask):
         try:
             birth_date = datetime.strptime(birth_date_str, "%Y-%m-%d")
             today = datetime.now()
+            # Uwaga! liczymy tylko po roczniku, nie uwzględniamy dnia i miesiąca
             age = today.year - birth_date.year #- ((today.month, today.day) < (birth_date.month, birth_date.day))
             
             if not (20 <= age <= 40):

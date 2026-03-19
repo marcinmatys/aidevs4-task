@@ -2,7 +2,7 @@
 
 Uwaga! Fabuła przedtawiona w zadaniu jest fikcyjna i służy wyłącznie celom edukacyjnym.
 
-Zadanie polega na pobraniu listy osób w formacie csv z dostępnego huba hub.ag3nts.org
+Zadanie polega na pobraniu listy osób w formacie csv z dostępnego huba {HUB_BASE_URL}
 Następnie listę należy odfiltrować według podanych niżej kryteriów.
 Interesują nas tylko mężczyźni, w wieku 20-40 lat, urodzeni w Grudziądzu, pracujący w branży transportowej.
 Podstawowe filtrowanie wykonamy standardowym programowaniem, natomiast do klasyfikacji zawodów będziemy używać LLM.

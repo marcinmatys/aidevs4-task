@@ -24,7 +24,7 @@ def main(task_name: str, dict: str = None):
         logger.error(f"Error: {e}")
         logger.error(f"Task {task_name} not found.")
     except Exception as e:
-        logger.error(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred", exc_info=True)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run a specific task.')

@@ -7,6 +7,7 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict
+from dotenv import load_dotenv, find_dotenv
 
 from common.HttpUtil import HttpUtil
 from llmService.responses_service import LLMProvider, ResponsesService
@@ -49,7 +50,9 @@ class JobsClassificationResponse(BaseModel):
 
 class S01E01(BaseTask):
     def __init__(self) -> None:
-        super().__init__(base_url="{HUB_BASE_URL}", task_name="people")
+        _ = load_dotenv(find_dotenv())
+        base_url = os.getenv("HUB_BASE_URL")
+        super().__init__(base_url=base_url, task_name="people")
         self.http_util = HttpUtil(self.base_url)
 
     def run(self) -> Dict[str, Any]:

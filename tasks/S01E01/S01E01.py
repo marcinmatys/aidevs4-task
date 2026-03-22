@@ -32,19 +32,19 @@ class JobClassificationItem(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    job_id: str = Field(min_length=1, description="Job identifier from input payload.")
-    reasoning: str = Field(min_length=1, description="Short explanation in Polish.")
+    job_id: str = Field(min_length=1, description="Job identifier")
+    reasoning: str = Field(min_length=1, description="Short explanation in Polish about selected tags.")
     tags: list[AllowedTag] = Field(min_length=1, description="Selected tags from allowed set.")
 
 
 class JobsClassificationResponse(BaseModel):
-    """Structured list of all requested job classifications."""
+    """list of jobs to be classified"""
 
     model_config = ConfigDict(extra="forbid")
 
     classifications: list[JobClassificationItem] = Field(
         min_length=1,
-        description="List of classifications for each requested job.",
+        description="List of tags for a specific job.",
     )
 
 
@@ -71,6 +71,7 @@ class S01E01(BaseTask):
         )
 
         answer_payload = self._build_answer_payload(filtered_people, job_to_tags)
+        self._save_selected_people(answer_payload)
         verification_result = self.verify(answer_payload)
 
         self.logger.info("Stage 1 to 7 completed successfully.")
@@ -223,6 +224,28 @@ class S01E01(BaseTask):
 
             return [row for row in reader]
 
+    def _save_selected_people(self, selected_people: list[Dict[str, Any]]) -> Path:
+        """Save people information prepared for verification to CSV cache."""
+        output_path = self._get_selected_csv_path()
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if not selected_people:
+            output_path.write_text("", encoding="utf-8")
+            self.logger.warning(
+                "No selected people to save. Created empty file: %s",
+                output_path,
+            )
+            return output_path
+
+        fieldnames = list(selected_people[0].keys())
+        with open(output_path, mode="w", encoding="utf-8", newline="") as file_obj:
+            writer = csv.DictWriter(file_obj, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(selected_people)
+
+        self.logger.info("Saved selected people to: %s", output_path)
+        return output_path
+
     def _classify_jobs(self, filtered_people: list[Dict[str, str]]) -> Dict[str, list[str]]:
         """Classify unique job descriptions using Responses API and structured output."""
         unique_jobs = sorted(
@@ -255,7 +278,6 @@ class S01E01(BaseTask):
                         {"job_id": job_id, "job_description": description}
                         for job_id, description in batch.items()
                     ],
-                    "allowed_tags": self._allowed_tags(),
                 },
                 output_model=self._build_jobs_classification_model(),
                 schema_name="jobs_classification",
@@ -394,6 +416,10 @@ class S01E01(BaseTask):
     def _get_filtered_csv_path(self) -> Path:
         """Build absolute path to tasks/S01E01/resources/people_filtered.csv."""
         return Path(__file__).resolve().parent / "resources" / "people_filtered.csv"
+
+    def _get_selected_csv_path(self) -> Path:
+        """Build absolute path to tasks/S01E01/resources/people_selected.csv."""
+        return Path(__file__).resolve().parent / "resources" / "people_selected.csv"
 
     @staticmethod
     def _validate_non_empty_file(file_path: Path) -> None:

@@ -9,9 +9,11 @@ from typing import Any, Dict, TypeVar
 from dotenv import find_dotenv, load_dotenv
 from openai import OpenAI
 from pydantic import BaseModel
+from common.logger_config import setup_logger
 
 
 TResponseModel = TypeVar("TResponseModel", bound=BaseModel)
+logger = setup_logger("ResponsesService")
 
 
 class LLMProvider(str, Enum):
@@ -83,6 +85,18 @@ class ResponsesService:
     ) -> TResponseModel:
         """Call Responses API and return data validated by the provided Pydantic model."""
         resolved_schema_name = schema_name or output_model.__name__
+        output_schema = output_model.model_json_schema()
+
+        logger.info("generate_with_schema system_prompt:\n%s", system_prompt)
+        logger.info(
+            "generate_with_schema input_payload:\n%s",
+            self._format_json_for_log(input_payload),
+        )
+        logger.info(
+            "generate_with_schema output_model schema:\n%s",
+            self._format_json_for_log(output_schema),
+        )
+
         response = self._client.responses.create(
             model=self._model,
             input=[
@@ -93,13 +107,18 @@ class ResponsesService:
                 "format": {
                     "type": "json_schema",
                     "name": resolved_schema_name,
-                    "schema": output_model.model_json_schema(),
+                    "schema": output_schema,
                     "strict": True,
                 }
             },
         )
 
         raw_output = getattr(response, "output_text", None)
+        logger.info(
+            "generate_with_schema llm response:\n%s",
+            self._format_json_for_log(raw_output),
+        )
+
         if not raw_output:
             raise ValueError("Responses API returned empty output_text.")
 
@@ -107,6 +126,17 @@ class ResponsesService:
             return output_model.model_validate_json(raw_output)
         except Exception as error:
             raise ValueError(f"Failed to parse Responses API JSON into {output_model.__name__}: {error}") from error
+
+    @staticmethod
+    def _format_json_for_log(value: Any) -> str:
+        if isinstance(value, str):
+            try:
+                parsed_value = json.loads(value)
+            except json.JSONDecodeError:
+                return value
+            return json.dumps(parsed_value, ensure_ascii=False, indent=2, sort_keys=True)
+
+        return json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True)
 
     def _resolve_base_url(self) -> str | None:
         if not self._config.base_url_env:

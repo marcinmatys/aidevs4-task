@@ -5,12 +5,19 @@ trigger: always_on
 # Project overview
 This project is dedicated to completing tasks from the AI Devs 4 training program.
 For each lesson, a dedicated directory is created within the `tasks` folder following the format `SXXEXX` (e.g., `S01E01`, `S02E03`), where `S` represents the week and `E` represents the day of that week.
-Within each daily directory (e.g., `S02E03`), task implementation classes are created, which must inherit from `BaseTask`. Typically, the main task class shares the same name as the directory, though additional implementations may be added for specific requirements.
+Within each daily directory (e.g., `S02E03`), the main task class is implemented (which must inherit from `BaseTask`), and additional supporting code (functions, helper classes, or separate files) may be included as needed. 
 
 Task implementation involves executing defined steps and submitting the final answer to the task hub API.
-The hub is accessible via a web interface at: {HUB_BASE_URL}.
+The hub is accessible via a web interface at {HUB_BASE_URL} - defined in environment variables.
 Submitting an answer requires sending a POST request with a JSON body containing `apikey`, `task_name`, and `answer`.
 The hub responds with either an error message or a flag in the format `{FLG:....}`, which is then manually entered on the hub's website.
+
+# Rules for task implementation
+
+- Each task implementation class must inherit from `BaseTask`.
+- The main task class should share the same name as the directory (e.g., `S01E01` for `S01E01` directory).
+- Send final answer using verify() method from BaseTask class.
+- When you need to get some resources from hub use get_data() method from HttpUtil class.
 
 # Technology stack
 - Python 3.12+

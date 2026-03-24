@@ -1,0 +1,26 @@
+### location
+
+POST {{url}}/api/location
+Content-Type: application/json
+
+{
+  "apikey": "{{api-key}}",
+  "name": "Cezary",
+  "surname": "Żurek"
+}
+
+### accesslevel
+
+POST {{url}}/api/accesslevel
+Content-Type: application/json
+
+{
+  "apikey": "{{api-key}}",
+  "name": "Cezary",
+  "surname": "Żurek",
+  "birthYear": 1987
+}
+
+### nominatim
+
+GET https://nominatim.openstreetmap.org/search?city=Zabrze&country=Poland&format=json

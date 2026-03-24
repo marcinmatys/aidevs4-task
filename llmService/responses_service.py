@@ -127,6 +127,32 @@ class ResponsesService:
         except Exception as error:
             raise ValueError(f"Failed to parse Responses API JSON into {output_model.__name__}: {error}") from error
 
+    def generate_with_tools(
+        self,
+        *,
+        messages: list[Dict[str, Any]],
+        tools: list[Dict[str, Any]],
+    ) -> Any:
+        """Single Responses API call with tool definitions. Returns raw response object."""
+        logger.info(
+            "generate_with_tools messages (%d), tools (%d), model=%s",
+            len(messages),
+            len(tools),
+            self._model,
+        )
+
+        response = self._client.responses.create(
+            model=self._model,
+            input=messages,
+            tools=tools,
+        )
+
+        logger.info(
+            "generate_with_tools response output items: %d",
+            len(response.output) if response.output else 0,
+        )
+        return response
+
     @staticmethod
     def _format_json_for_log(value: Any) -> str:
         if isinstance(value, str):

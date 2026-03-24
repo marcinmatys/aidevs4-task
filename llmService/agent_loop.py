@@ -51,7 +51,11 @@ class AgentLoop:
                 return final_text
 
             # Execute each tool call and append results to messages
-            # First, append all function_call items to messages so the model sees them
+            # First, append all function_call items to messages so the model sees them.
+            # fc is a ResponseFunctionToolCall SDK object (not a dict) — the Responses API
+            # accepts these directly in the input array and serializes them internally.
+            # Alternatively, fc can be converted to a plain dict:
+            #   {"type": "function_call", "call_id": fc.call_id, "name": fc.name, "arguments": fc.arguments}
             for fc in function_calls:
                 messages.append(fc)
 

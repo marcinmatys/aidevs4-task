@@ -141,6 +141,11 @@ class ResponsesService:
             self._model,
         )
 
+        logger.info(
+            "generate_with_tools messages:\n%s",
+            self._format_json_for_log(messages),
+        )
+
         response = self._client.responses.create(
             model=self._model,
             input=messages,
@@ -162,7 +167,7 @@ class ResponsesService:
                 return value
             return json.dumps(parsed_value, ensure_ascii=False, indent=2, sort_keys=True)
 
-        return json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True)
+        return json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True, default=str)
 
     def _resolve_base_url(self) -> str | None:
         if not self._config.base_url_env:

@@ -10,26 +10,33 @@ from typing import Any, Callable, Dict
 import requests
 from dotenv import find_dotenv, load_dotenv
 
+from common.HttpUtil import HttpUtil
 from common.logger_config import setup_logger
 
 _ = load_dotenv(find_dotenv())
 logger = setup_logger("S01E02Tools")
 
-HUB_BASE_URL = os.getenv("HUB_BASE_URL", "")
 API_KEY = os.getenv("API_KEY", "")
 
 RESOURCES_DIR = Path(__file__).resolve().parent / "resources"
 
 # ---------------------------------------------------------------------------
-# Verifier reference — set by S01E02 task class before agent starts
+# External references — set by S01E02 task class before agent starts
 # ---------------------------------------------------------------------------
 _task_verifier: Any = None
+_http_util: HttpUtil | None = None
 
 
 def set_task_verifier(verifier: Any) -> None:
     """Inject the BaseTask instance so verify() can call BaseTask.verify()."""
     global _task_verifier
     _task_verifier = verifier
+
+
+def set_http_util(http_util: HttpUtil) -> None:
+    """Inject the HttpUtil instance for hub API calls."""
+    global _http_util
+    _http_util = http_util
 
 
 # ---------------------------------------------------------------------------
@@ -52,12 +59,11 @@ def get_suspects() -> str:
 
 def get_powerplants() -> str:
     """Fetch power plant locations from the hub."""
-    url = f"{HUB_BASE_URL}/data/{API_KEY}/findhim_locations.json"
-    logger.info("get_powerplants: GET %s", url)
+    endpoint = f"/data/{API_KEY}/findhim_locations.json"
+    logger.info("get_powerplants: GET %s", endpoint)
 
-    response = requests.get(url)
-    response.raise_for_status()
-    data = response.json()
+    raw = _http_util.getData(endpoint)
+    data = json.loads(raw)
 
     logger.info("get_powerplants: received %d entries", len(data) if isinstance(data, list) else 1)
     return json.dumps(data, ensure_ascii=False)
@@ -65,13 +71,11 @@ def get_powerplants() -> str:
 
 def get_person_locations(name: str, surname: str) -> str:
     """Get last-known coordinates for a person from the hub."""
-    url = f"{HUB_BASE_URL}/api/location"
+    endpoint = "/api/location"
     payload = {"apikey": API_KEY, "name": name, "surname": surname}
-    logger.info("get_person_locations: POST %s for %s %s", url, name, surname)
+    logger.info("get_person_locations: POST %s for %s %s", endpoint, name, surname)
 
-    response = requests.post(url, json=payload)
-    response.raise_for_status()
-    data = response.json()
+    data = _http_util.sendData(payload, endpoint)
 
     logger.info("get_person_locations: response for %s %s: %s", name, surname, json.dumps(data, ensure_ascii=False))
     return json.dumps(data, ensure_ascii=False)
@@ -79,13 +83,11 @@ def get_person_locations(name: str, surname: str) -> str:
 
 def get_person_access_level(name: str, surname: str, birth_year: int) -> str:
     """Get access level for a person from the hub."""
-    url = f"{HUB_BASE_URL}/api/accesslevel"
+    endpoint = "/api/accesslevel"
     payload = {"apikey": API_KEY, "name": name, "surname": surname, "birthYear": birth_year}
-    logger.info("get_person_access_level: POST %s for %s %s (born %d)", url, name, surname, birth_year)
+    logger.info("get_person_access_level: POST %s for %s %s (born %d)", endpoint, name, surname, birth_year)
 
-    response = requests.post(url, json=payload)
-    response.raise_for_status()
-    data = response.json()
+    data = _http_util.sendData(payload, endpoint)
 
     logger.info("get_person_access_level: response: %s", json.dumps(data, ensure_ascii=False))
     return json.dumps(data, ensure_ascii=False)
@@ -159,120 +161,106 @@ def verify(name: str, surname: str, access_level: str, power_plant: str) -> str:
 TOOL_DEFINITIONS: list[Dict[str, Any]] = [
     {
         "type": "function",
-        "function": {
-            "name": "get_suspects",
-            "description": "Get the list of suspected persons from local CSV file. Returns name, surname, gender, born year, city, tags.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": False,
-            },
-            "strict": True,
+        "name": "get_suspects",
+        "description": "Get the list of suspected persons from local CSV file. Returns name, surname, gender, born year, city, tags.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": False,
         },
+        "strict": True,
     },
     {
         "type": "function",
-        "function": {
-            "name": "get_powerplants",
-            "description": "Get the list of power plants with their city names and identification codes from the hub.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": False,
-            },
-            "strict": True,
+        "name": "get_powerplants",
+        "description": "Get the list of power plants with their city names and identification codes from the hub.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": False,
         },
+        "strict": True,
     },
     {
         "type": "function",
-        "function": {
-            "name": "get_person_locations",
-            "description": "Get the last-known geographic coordinates (latitude, longitude) where a person was seen. Returns a list of locations.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "description": "First name of the person"},
-                    "surname": {"type": "string", "description": "Last name of the person"},
-                },
-                "required": ["name", "surname"],
-                "additionalProperties": False,
+        "name": "get_person_locations",
+        "description": "Get the last-known geographic coordinates (latitude, longitude) where a person was seen. Returns a list of locations.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "First name of the person"},
+                "surname": {"type": "string", "description": "Last name of the person"},
             },
-            "strict": True,
+            "required": ["name", "surname"],
+            "additionalProperties": False,
         },
+        "strict": True,
     },
     {
         "type": "function",
-        "function": {
-            "name": "get_person_access_level",
-            "description": "Get the access level for a specific person identified by name, surname, and birth year.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "description": "First name of the person"},
-                    "surname": {"type": "string", "description": "Last name of the person"},
-                    "birth_year": {"type": "integer", "description": "Year the person was born"},
-                },
-                "required": ["name", "surname", "birth_year"],
-                "additionalProperties": False,
+        "name": "get_person_access_level",
+        "description": "Get the access level for a specific person identified by name, surname, and birth year.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "First name of the person"},
+                "surname": {"type": "string", "description": "Last name of the person"},
+                "birth_year": {"type": "integer", "description": "Year the person was born"},
             },
-            "strict": True,
+            "required": ["name", "surname", "birth_year"],
+            "additionalProperties": False,
         },
+        "strict": True,
     },
     {
         "type": "function",
-        "function": {
-            "name": "get_city_coordinates",
-            "description": "Get geographic coordinates (latitude, longitude) for a city in Poland using Nominatim geocoding.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "city_name": {"type": "string", "description": "Name of the city in Poland"},
-                },
-                "required": ["city_name"],
-                "additionalProperties": False,
+        "name": "get_city_coordinates",
+        "description": "Get geographic coordinates (latitude, longitude) for a city in Poland using Nominatim geocoding.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "city_name": {"type": "string", "description": "Name of the city in Poland"},
             },
-            "strict": True,
+            "required": ["city_name"],
+            "additionalProperties": False,
         },
+        "strict": True,
     },
     {
         "type": "function",
-        "function": {
-            "name": "get_distance",
-            "description": "Calculate the haversine distance in kilometers between two geographic points specified by latitude and longitude.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "lat1": {"type": "number", "description": "Latitude of the first point"},
-                    "lon1": {"type": "number", "description": "Longitude of the first point"},
-                    "lat2": {"type": "number", "description": "Latitude of the second point"},
-                    "lon2": {"type": "number", "description": "Longitude of the second point"},
-                },
-                "required": ["lat1", "lon1", "lat2", "lon2"],
-                "additionalProperties": False,
+        "name": "get_distance",
+        "description": "Calculate the haversine distance in kilometers between two geographic points specified by latitude and longitude.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "lat1": {"type": "number", "description": "Latitude of the first point"},
+                "lon1": {"type": "number", "description": "Longitude of the first point"},
+                "lat2": {"type": "number", "description": "Latitude of the second point"},
+                "lon2": {"type": "number", "description": "Longitude of the second point"},
             },
-            "strict": True,
+            "required": ["lat1", "lon1", "lat2", "lon2"],
+            "additionalProperties": False,
         },
+        "strict": True,
     },
     {
         "type": "function",
-        "function": {
-            "name": "verify",
-            "description": "Submit the final answer to the hub for verification. Use this when you have identified the suspect closest to a power plant, their access level, and the power plant code. The hub responds with a flag {FLG:...} on success or an error message.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "description": "First name of the suspect"},
-                    "surname": {"type": "string", "description": "Last name of the suspect"},
-                    "access_level": {"type": "string", "description": "Access level of the suspect"},
-                    "power_plant": {"type": "string", "description": "Power plant identification code"},
-                },
-                "required": ["name", "surname", "access_level", "power_plant"],
-                "additionalProperties": False,
+        "name": "verify",
+        "description": "Submit the final answer to the hub for verification. Use this when you have identified the suspect closest to a power plant, their access level, and the power plant code. The hub responds with a flag {FLG:...} on success or an error message.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "First name of the suspect"},
+                "surname": {"type": "string", "description": "Last name of the suspect"},
+                "access_level": {"type": "string", "description": "Access level of the suspect"},
+                "power_plant": {"type": "string", "description": "Power plant identification code"},
             },
-            "strict": True,
+            "required": ["name", "surname", "access_level", "power_plant"],
+            "additionalProperties": False,
         },
+        "strict": True,
     },
 ]
 

@@ -14,6 +14,7 @@ The hub responds with either an error message or a flag in the format `{FLG:....
 
 # Rules for task implementation
 
+- Always implement in English, both code and comments.
 - Each task implementation class must inherit from `BaseTask`.
 - The main task class should share the same name as the directory (e.g., `S01E01` for `S01E01` directory).
 - Send final answer using verify() method from BaseTask class.

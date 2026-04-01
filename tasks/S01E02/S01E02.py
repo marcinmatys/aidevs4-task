@@ -51,9 +51,10 @@ class S01E02(BaseTask):
             max_iterations=15,
         )
 
-        result = agent.run()
-        self.logger.info("Agent finished. Result: %s", result[:1000])
-        return {"result": result}
+        result = agent.run(messages=[{"role": "user", "content": "Execute the task."}])
+        assistant_message = result["assistant_message"]
+        self.logger.info("Agent finished. Result: %s", assistant_message[:1000])
+        return {"result": assistant_message}
 
     @staticmethod
     def _build_responses_service() -> ResponsesService:

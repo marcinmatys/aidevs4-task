@@ -150,6 +150,9 @@ class ResponsesService:
             model=self._model,
             input=messages,
             tools=tools,
+            reasoning={
+                "effort": "medium"
+            }
         )
 
         logger.info(

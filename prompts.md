@@ -9,4 +9,3 @@ Podziel plan na etapy, tak aby można było wykonać implementację  etapami. Za
 
 Wykonaj implementację pierwszego zadania S01E01 według przygotowanego planu @plan-impl.md 
 Wykonaj tylko dwa pierwsze etapy implementacji, kolejne wykonamy później.
-Implementację wykonuj oczywiście posługując się językiem angielskim (nazwy zmiennych, klas, metod, komentarze itp. )

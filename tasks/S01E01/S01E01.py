@@ -10,7 +10,7 @@ from typing import Any, Dict
 from dotenv import load_dotenv, find_dotenv
 
 from common.HttpUtil import HttpUtil
-from llmService.responses_service import LLMProvider, ResponsesService
+from llmService.responses_service import ResponsesService, ResponsesServiceConfig
 from pydantic import BaseModel, ConfigDict, Field
 from tasks.base_task import BaseTask
 
@@ -297,17 +297,11 @@ class S01E01(BaseTask):
 
     def _build_responses_service(self) -> ResponsesService:
         """Build provider-aware Responses API service with OpenRouter as default."""
-        provider_name = os.getenv("LLM_PROVIDER", LLMProvider.OPENROUTER.value).strip().lower()
+        return ResponsesService.build(config=self._responses_service_config())
 
-        try:
-            provider = LLMProvider(provider_name)
-        except ValueError as error:
-            allowed_values = ", ".join([item.value for item in LLMProvider])
-            raise ValueError(
-                f"Unsupported LLM_PROVIDER '{provider_name}'. Allowed: {allowed_values}."
-            ) from error
-
-        return ResponsesService(provider=provider)
+    @staticmethod
+    def _responses_service_config() -> ResponsesServiceConfig:
+        return ResponsesServiceConfig(model="openai/gpt-4o-mini")
 
     def _build_classification_prompt(self) -> str:
         """Build system prompt for job classification task."""

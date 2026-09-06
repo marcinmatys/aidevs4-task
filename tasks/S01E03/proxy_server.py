@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from common.HttpUtil import HttpUtil
 from common.logger_config import setup_logger
 from llmService.agent_loop import AgentLoop
-from llmService.responses_service import LLMProvider, ResponsesService
+from llmService.responses_service import ResponsesService, ResponsesServiceConfig
 from tasks.S01E03.tools import TOOL_DEFINITIONS, set_http_util, tool_executor
 
 _ = load_dotenv(find_dotenv())
@@ -83,17 +83,11 @@ class ProxyRuntime:
 
     @staticmethod
     def _build_responses_service() -> ResponsesService:
-        provider_name = os.getenv("LLM_PROVIDER", LLMProvider.OPENROUTER.value).strip().lower()
+        return ResponsesService.build(config=ProxyRuntime._responses_service_config())
 
-        try:
-            provider = LLMProvider(provider_name)
-        except ValueError as error:
-            allowed_values = ", ".join([item.value for item in LLMProvider])
-            raise ValueError(
-                f"Unsupported LLM_PROVIDER '{provider_name}'. Allowed: {allowed_values}."
-            ) from error
-
-        return ResponsesService(provider=provider)
+    @staticmethod
+    def _responses_service_config() -> ResponsesServiceConfig:
+        return ResponsesServiceConfig(model="google/gemini-3.1-pro-preview", reasoning_effort="low")
 
     @staticmethod
     def _get_required_env(name: str) -> str:

@@ -6,7 +6,7 @@ from typing import Any, Dict
 from dotenv import find_dotenv, load_dotenv
 
 from llmService.agent_loop import AgentLoop
-from llmService.responses_service import LLMProvider, ResponsesService
+from llmService.responses_service import ResponsesService, ResponsesServiceConfig
 from tasks.base_task import BaseTask
 from common.HttpUtil import HttpUtil
 from tasks.S01E02.tools import TOOL_DEFINITIONS, set_http_util, set_task_verifier, tool_executor
@@ -59,14 +59,8 @@ class S01E02(BaseTask):
     @staticmethod
     def _build_responses_service() -> ResponsesService:
         """Build provider-aware Responses API service."""
-        provider_name = os.getenv("LLM_PROVIDER", LLMProvider.OPENROUTER.value).strip().lower()
+        return ResponsesService.build(config=S01E02._responses_service_config())
 
-        try:
-            provider = LLMProvider(provider_name)
-        except ValueError as error:
-            allowed_values = ", ".join([item.value for item in LLMProvider])
-            raise ValueError(
-                f"Unsupported LLM_PROVIDER '{provider_name}'. Allowed: {allowed_values}."
-            ) from error
-
-        return ResponsesService(provider=provider)
+    @staticmethod
+    def _responses_service_config() -> ResponsesServiceConfig:
+        return ResponsesServiceConfig()

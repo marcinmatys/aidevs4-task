@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import os
 from dataclasses import dataclass
@@ -247,6 +248,58 @@ class ResponsesService:
                 self._format_json_for_log(response.model_dump()),
             )
         return response
+
+    def analyze_image(
+        self,
+        *,
+        query: str,
+        image_bytes: bytes,
+        mime_type: str,
+    ) -> str:
+        """Single Responses API call with an attached image. Returns model text output."""
+        encoded_image = base64.b64encode(image_bytes).decode("ascii")
+        data_url = f"data:{mime_type};base64,{encoded_image}"
+
+        if self._is_logging_enabled(self._LOG_INPUT_ENV):
+            logger.info(
+                "analyze_image input:\n%s",
+                self._format_json_for_log({"query": query, "mime_type": mime_type}),
+            )
+
+        request_payload: Dict[str, Any] = {
+            "model": self._model,
+            "input": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": query},
+                        {"type": "input_image", "image_url": data_url},
+                    ],
+                }
+            ],
+        }
+        self._apply_optional_request_settings(request_payload)
+        self._log_request_payload_params(
+            operation_name="analyze_image",
+            request_payload=request_payload,
+            excluded_keys={"input"},
+        )
+
+        response = self._client.responses.create(
+            **request_payload,
+        )
+
+        raw_output = getattr(response, "output_text", None)
+        if self._is_logging_enabled(self._LOG_OUTPUT_ENV):
+            logger.info(
+                "analyze_image output:\n%s",
+                self._format_json_for_log(raw_output),
+            )
+
+        if not raw_output:
+            raise ValueError("Responses API returned empty output_text for image analysis.")
+
+        return raw_output
 
     @staticmethod
     def _format_json_for_log(value: Any) -> str:

@@ -24,3 +24,30 @@ Content-Type: application/json
 ### nominatim
 
 GET https://nominatim.openstreetmap.org/search?city=Zabrze&country=Poland&format=json
+
+### railway
+
+POST {{url}}/verify
+Content-Type: application/json
+
+{
+  "apikey": "{{api-key}}",
+  "task": "railway",
+  "answer": {
+    "action": "help"
+  }
+}
+
+### railway reconfigure
+
+POST {{url}}/verify
+Content-Type: application/json
+
+{
+  "apikey": "{{api-key}}",
+  "task": "railway",
+  "answer": {
+    "action": "reconfigure",
+    "route": "fsdf"
+  }
+}

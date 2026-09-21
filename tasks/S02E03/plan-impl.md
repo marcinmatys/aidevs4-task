@@ -1,4 +1,4 @@
-# Plan: S02E02 "failure" — kondensacja logów awarii
+# Plan: S02E03 "failure" — kondensacja logów awarii
 
 ## Cel
 Zbudować skondensowany log awarii elektrowni (≤1500 tokenów, jedno zdarzenie/linia),
@@ -27,7 +27,7 @@ który przejdzie weryfikację Centrali. Iterować na podstawie feedbacku technik
 ## Stan modułowy w `tools.py`
 - `_FILTERED_LOGS: list[str]`
 - `_RESULT_LOGS: list[str]` (unikalne, kolejność zachowana)
-- `init_state(filtered, result, responses_service)` wywoływane przez `S02E02.run` przed `AgentLoop`
+- `init_state(filtered, result, responses_service)` wywoływane przez `S02E03.run` przed `AgentLoop`
 - `TOOL_DEFINITIONS` + `tool_executor` (wzorzec S01E05)
 
 ## Pętla agenta (sterowana system promptem)
@@ -41,9 +41,9 @@ który przejdzie weryfikację Centrali. Iterować na podstawie feedbacku technik
 - `max_iterations ~15`; chroń podzespoły już zgłoszone przez techników przy kompresji
 
 ## Pliki
-- `tasks/S02E02/S02E02.py` — klasa `S02E02(BaseTask)`, `task_name="failure"`
-- `tasks/S02E02/tools.py` — 5 narzędzi, stan modułowy, `TOOL_DEFINITIONS`, `tool_executor`
-- `tasks/S02E02/__init__.py` — pusty
+- `tasks/S02E03/S02E03.py` — klasa `S02E03(BaseTask)`, `task_name="failure"`
+- `tasks/S02E03/tools.py` — 5 narzędzi, stan modułowy, `TOOL_DEFINITIONS`, `tool_executor`
+- `tasks/S02E03/__init__.py` — pusty
 - `pyproject.toml` — zależność `tiktoken`
 
 ## Zabezpieczenia formatu / tokenów
@@ -52,7 +52,7 @@ który przejdzie weryfikację Centrali. Iterować na podstawie feedbacku technik
 - Plik zmienia się o północy — pobieraj świeżo przy każdym uruchomieniu
 
 ## Weryfikacja
-1. `uv run main.py --dict "S02E02" --task "S02E02"`
+1. `uv run main.py --dict "S02E03" --task "S02E03"`
 2. Log pokazuje: rozmiar pliku, liczbę linii, tokeny filtered/CRIT
 3. `count_tokens(result_logs) <= 1500` przed każdym submit
 4. Odpowiedź Centrali logowana; iteracje wg feedbacku aż do {FLG:...}

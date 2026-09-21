@@ -9,8 +9,8 @@ from common.HttpUtil import HttpUtil
 from llmService.agent_loop import AgentLoop
 from llmService.responses_service import ResponsesService, ResponsesServiceConfig
 from tasks.base_task import BaseTask
-from tasks.S02E02 import tools
-from tasks.S02E02.tools import (
+from tasks.S02E03 import tools
+from tasks.S02E03.tools import (
     TOOL_DEFINITIONS,
     dedupe_by_description,
     filter_by_levels,
@@ -53,7 +53,7 @@ Gdy w odpowiedzi pojawi się flaga {FLG:...}, umieść ją w swojej końcowej od
 """
 
 
-class S02E02(BaseTask):
+class S02E03(BaseTask):
     """Condense power-plant failure logs and iterate with Centrala feedback until the flag."""
 
     def __init__(self) -> None:
@@ -64,7 +64,7 @@ class S02E02(BaseTask):
 
     def run(self) -> Dict[str, Any]:
         """Run the deterministic filtering, then the agent loop to obtain the flag."""
-        self.logger.info("Starting S02E02 task execution.")
+        self.logger.info("Starting S02E03 task execution.")
 
         api_key = self._ensure_api_key()
         raw_log = self._download_log(api_key)

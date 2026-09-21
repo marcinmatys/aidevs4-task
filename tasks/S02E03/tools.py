@@ -14,7 +14,7 @@ from common.logger_config import setup_logger
 from llmService.responses_service import ResponsesService
 
 _ = load_dotenv(find_dotenv())
-logger = setup_logger("S02E02Tools")
+logger = setup_logger("S02E03Tools")
 
 API_KEY = os.getenv("API_KEY", "")
 HUB_BASE_URL = os.getenv("HUB_BASE_URL", "")
@@ -36,7 +36,7 @@ _BACKOFF_SEQUENCE = [2, 4, 8]  # seconds, for HTTP 503
 
 
 # ---------------------------------------------------------------------------
-# Module-level shared state (initialized by S02E02.run before the agent starts)
+# Module-level shared state (initialized by S02E03.run before the agent starts)
 # ---------------------------------------------------------------------------
 
 _FILTERED_LOGS: list[str] = []

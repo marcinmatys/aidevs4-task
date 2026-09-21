@@ -51,3 +51,15 @@ Content-Type: application/json
     "route": "fsdf"
   }
 }
+
+
+### mailbox
+
+POST {{url}}/api/zmail
+Content-Type: application/json
+
+{
+  "apikey": "{{api-key}}",
+  "action": "help",
+  "page": 1
+}

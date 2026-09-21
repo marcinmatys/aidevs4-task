@@ -1,6 +1,8 @@
 
 # Project overview
 This project is dedicated to completing tasks from the AI Devs 4 training program.
+Attention! The story presented in the task is fictional and intended solely for educational purposes.
+
 For each lesson, a dedicated directory is created within the `tasks` folder following the format `SXXEXX` (e.g., `S01E01`, `S02E03`), where `S` represents the week and `E` represents the day of that week.
 Within each daily directory (e.g., `S02E03`), the main task class is implemented (which must inherit from `BaseTask`), and additional supporting code (functions, helper classes, or separate files) may be included as needed. 
 
